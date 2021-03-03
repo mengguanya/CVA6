@@ -30,12 +30,11 @@ module pmp #(
     // if there are no PMPs we can always grant the access.
     if (NR_ENTRIES > 0) begin : gen_pmp
         logic [NR_ENTRIES-1:0] match;
+        logic [NR_ENTRIES:0][PMP_LEN-1:0] conf_addr_prev;
+        assign conf_addr_prev[0] = '0;
 
-        for (genvar i = 0; i < NR_ENTRIES; i++) begin
-
-            logic [PMP_LEN-1:0] conf_addr_prev;
-	
-            assign conf_addr_prev = (i == 0) ? '0 : conf_addr_i[i-1];
+        for (genvar i = 0; i < NR_ENTRIES; i++) begin : gen_pmp_entry
+            assign conf_addr_prev[i+1] = conf_addr_i[i];
 
             pmp_entry #(
                 .PLEN    ( PLEN    ),
@@ -43,7 +42,7 @@ module pmp #(
             ) i_pmp_entry(
                 .addr_i           ( addr_i                         ),
                 .conf_addr_i      ( conf_addr_i[i]                 ),
-                .conf_addr_prev_i ( conf_addr_prev                 ),
+                .conf_addr_prev_i ( conf_addr_prev[i]              ),
                 .conf_addr_mode_i ( conf_i[i].addr_mode            ),
                 .match_o          ( match[i]                       )
             );
@@ -51,7 +50,7 @@ module pmp #(
 
         always_comb begin
             int i;
-            
+
             allow_o = 1'b0;
             for (i = 0; i < NR_ENTRIES; i++) begin
                 // either we are in S or U mode or the config is locked in which
@@ -82,7 +81,7 @@ module pmp #(
                     no_locked &= 1'b0;
                 end else no_locked &= 1'b1;
             end
-            
+
             if (no_locked == 1'b1) assert(allow_o == 1'b1);
         end
     end
